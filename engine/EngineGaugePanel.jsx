@@ -36,7 +36,7 @@ EngineGaugePanel = React.createClass({
         //  Critical data
         const engineName = this.props.engine.text;
         const online = this.props.engine.online;
-        const alarms = this.props.engine.alarms; 
+        const alarms = this.props.engine.alarms;
 
         //  Engine values
         var engineFuel = this.props.engine.fuel;
@@ -51,9 +51,9 @@ EngineGaugePanel = React.createClass({
 
         //  Determine alarm indicators
         const alarmIndicator = <i className="mdi mdi-alert"></i>;
-        const fuelAlarm = online ? (alarms.fuelLow.value ? alarmIndicator : '') : '';
+        const fuelAlarm =alarms.fuelLow.value ? alarmIndicator : '';
         const throttleAlarm = '';
-        const temperatureAlarm = online ? (alarms.temperatureHigh.value ? alarmIndicator : '') : '';
+        const temperatureAlarm = alarms.temperatureHigh.value ? alarmIndicator : '';
 
         return (
         	<div className="panel-body">
@@ -62,7 +62,7 @@ EngineGaugePanel = React.createClass({
 	                <div className="col-md-2">Fuel</div>
 	                <div className="col-md-8">
 	                    <div className="progress">
-	                        <div className={fuelClassName} style={{width: engineFuel + '%'}}></div>                            
+	                        <div className={fuelClassName} style={{width: engineFuel + '%'}}></div>
 	                    </div>
 	                </div>
 	                <div className="col-md-1">{{engineFuel}}%</div>

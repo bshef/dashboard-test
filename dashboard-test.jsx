@@ -9,11 +9,29 @@ Engines = new Mongo.Collection("engines");
 //
 if (Meteor.isClient) {
     //  This code is executed on the client only
-
     Meteor.startup(function () {
-        // Use Meteor.startup to render the component after the page is ready
-        React.render(<EngineList />, document.getElementById("engine-render-target"));
+        console.log(timestamp(), '\t', 'CLIENT running.');
     });
+
+    //  Subscribe to Engines data
+    Meteor.subscribe('engines');
+
+    //  Define templates
+    Template.engines.helpers({
+        EngineList() {
+            return EngineList;
+        }
+    });
+
+    //  Initialize Engines
+    var engines = Engines.find().fetch();
+    if(engines.length <= 0) {
+        console.log(engines);
+        var names = ['A', 'B', 'C'];
+        for(var i in names) {
+            createEngine();
+        }
+    }
 }
 
 
@@ -22,27 +40,70 @@ if (Meteor.isClient) {
 //
 if (Meteor.isServer) {
     Meteor.startup(function () {
-        console.log(timestamp(), '\t', 'Server running.');
-
-        //  Meteor methods
-        Meteor.methods({
-            'deleteEngine': function(engineId) {
-                deleteEngine(engineId);
-            },
-            'startupEngine': function(engine) {
-                startupEngine(engine);
-            },
-            'shutdownEngine': function(engine) {
-                shutdownEngine(engine);
-            }
-        });
-
-        //  Run Engines
-        Meteor.setInterval(runEngines, 0.5 * 1000);
+        console.log(timestamp(), '\t', 'SERVER running.');
     });
+
+    //  Publish Engines data
+    Meteor.publish('engines', function() {
+        return Engines.find();
+    });
+
+    //  Meteor methods
+    Meteor.methods({
+        'createEngine': function(engineName) {
+            createEngine(engineName);
+        },
+        'deleteEngine': function(engineId) {
+            deleteEngine(engineId);
+        },
+        'startupEngine': function(engine) {
+            startupEngine(engine);
+        },
+        'shutdownEngine': function(engine) {
+            shutdownEngine(engine);
+        }
+    });
+
+    //  Run Engines
+    Meteor.setInterval(runEngines, 0.5 * 1000);
 }
 
 //  ENGINE SYSTEMS
+
+function createEngine(engineName) {
+    var date = new Date();
+    var name = engineName ? engineName.toUpperCase() : date.toISOString();
+    //  Initialize engine data
+    var engineData = {
+        text: name,
+        online: true,
+        fuel: getRandomPercentInteger(),
+        fuelLowValue: 25,
+        throttle: getRandomPercentInteger(),
+        temperature: getRandomPercentInteger(),
+        temperatureHighValue: 75,
+        alarms: {
+            fuelLow: {
+                name: 'fuelLow',
+                msg: 'LOW FUEL',
+                value: false
+            },
+            temperatureHigh: {
+                name: 'temperatureHigh',
+                msg: 'HIGH TEMPERATURE',
+                value: false
+            }
+        },
+        createdAt: date
+    };
+
+    //  Initalize alarm condition(s)
+    engineData.alarms.fuelLow.value = engineData.fuel < engineData.fuelLowValue;
+    engineData.alarms.temperatureHigh.value = engineData.temperature > engineData.temperatureHighValue;
+
+    //  Add engine data to collection
+    Engines.insert(engineData);
+}
 
 function deleteEngine(engineId) {
     Engines.remove(engineId);
@@ -77,7 +138,6 @@ function shutdownEngine(engine) {
             online: false
         }
     });
-    clearAllEngineAlarms(engine._id);
     console.log('ENGINE', engine.text, 'ENGINE SHUTDOWN');
 }
 

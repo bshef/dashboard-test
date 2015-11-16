@@ -20,42 +20,18 @@ EngineList = React.createClass({
         return Math.floor((Math.random() * 100) + 1);
     },
 
+    createEngine(engineName) {
+        Meteor.call('createEngine', engineName);
+    },
+
     handleSubmit(event) {
         event.preventDefault();
 
-        // Find the text field via the React ref
-        var text = React.findDOMNode(this.refs.textInput).value.trim();
+        //  Find the text field via the React ref
+        var name = React.findDOMNode(this.refs.textInput).value.trim();
 
-        //  Initialize engine data
-        var engineData = {
-            text: text,
-            online: true,
-            fuel: this.getRandomPercentInteger(),
-            fuelLowValue: 25,
-            throttle: this.getRandomPercentInteger(),
-            temperature: this.getRandomPercentInteger(),
-            temperatureHighValue: 75,
-            alarms: {
-                fuelLow: {
-                    name: 'fuelLow',
-                    msg: 'LOW FUEL',
-                    value: false
-                },
-                temperatureHigh: {
-                    name: 'temperatureHigh',
-                    msg: 'HIGH TEMPERATURE',
-                    value: false
-                }
-            },
-            createdAt: new Date() // current time
-        };
-
-        //  Initalize alarm condition(s)
-        engineData.alarms.fuelLow.value = engineData.fuel < engineData.fuelLowValue;
-        engineData.alarms.temperatureHigh.value = engineData.temperature > engineData.temperatureHighValue;
-
-        //  Add engine data to collection
-        Engines.insert(engineData);
+        //  Let the server create the Engine
+        this.createEngine(name);
 
         // Clear form
         React.findDOMNode(this.refs.textInput).value = "";
@@ -80,7 +56,7 @@ EngineList = React.createClass({
                 </div>
 
                 <div className="row">
-                    
+
                 </div>
 
                 <div className="row">
