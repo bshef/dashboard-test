@@ -5,63 +5,16 @@ EngineControls = React.createClass({
         engine: React.PropTypes.object.isRequired
     },
 
-    getRandomPercentInteger() {
-        return Math.floor((Math.random() * 100) + 1);
-    },
-
     startupEngine() {
-        //  Set the online property to TRUE
-        Engines.update(this.props.engine._id, {
-            $set: {online: true}
-        });
-        //  Set the fuel to a random value if it was 0
-        if(this.props.engine.fuel <= 0) {
-            Engines.update(this.props.engine._id, {
-                $set: {fuel: this.getRandomPercentInteger()}
-            });
-        }        
-        //  Set the throttle to a random value
-        Engines.update(this.props.engine._id, {
-            $set: {throttle: this.getRandomPercentInteger()}
-        });
-        console.log('ENGINE', this.props.engine.text, 'ENGINE START');
-    },
-
-    clearAllAlarms(engineId) {
-        Engines.update(engineId, {
-            $set: {
-                alarms: {
-                    fuelLow: {
-                        name: 'fuelLow',
-                        msg: 'LOW FUEL',
-                        value: false
-                    },
-                    temperatureHigh: {
-                        name: 'temperatureHigh',
-                        msg: 'HIGH TEMPERATURE',
-                        value: false
-                    }
-                },
-            }
-        });
+        Meteor.call('startupEngine', this.props.engine);
     },
 
     shutdownEngine() {
-        //  Set the online property to FALSE
-        Engines.update(this.props.engine._id, {
-            $set: {online: false}
-        });
-        //  Set throttle to 0
-        Engines.update(this.props.engine._id, {
-            $set: {throttle: 0}
-        });
-        //  Clear alarms
-        this.clearAllAlarms(this.props.engine_id);
-        console.log('ENGINE', this.props.engine.text, 'ENGINE SHUTDOWN');
+        Meteor.call('shutdownEngine', this.props.engine);
     },
 
     deleteThisEngine() {
-        Engines.remove(this.props.engine._id);
+        Meteor.call('deleteEngine', this.props.engine._id);
     },
 
     render() {
@@ -84,7 +37,7 @@ EngineControls = React.createClass({
                     <a href="#" className={startButtonClassName} style={{width: '100%'}} onClick={this.startupEngine}>{startButtonLabel}</a>
                     <a href="#" className={shutdownButtonClassName} style={{width: '100%'}} onClick={this.shutdownEngine}>{shutdownButtonLabel}</a>
                     <a href="#" className="btn btn-default btn-xs" style={{width: '100%'}} onClick={this.deleteThisEngine}>Delete this engine</a>
-                </div>            
+                </div>
             </div>
         );
     }

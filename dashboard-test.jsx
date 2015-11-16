@@ -12,22 +12,73 @@ if (Meteor.isClient) {
 
     Meteor.startup(function () {
         // Use Meteor.startup to render the component after the page is ready
-        // React.render(<App />, document.getElementById("render-target"));
         React.render(<EngineList />, document.getElementById("engine-render-target"));
     });
 }
 
 
-// 
+//
 //  SERVER
 //
 if (Meteor.isServer) {
     Meteor.startup(function () {
         console.log(timestamp(), '\t', 'Server running.');
 
-        //  Decrease fuel
-        Meteor.setInterval(runEngines, 1 * 1000);
-    });    
+        //  Meteor methods
+        Meteor.methods({
+            'deleteEngine': function(engineId) {
+                deleteEngine(engineId);
+            },
+            'startupEngine': function(engine) {
+                startupEngine(engine);
+            },
+            'shutdownEngine': function(engine) {
+                shutdownEngine(engine);
+            }
+        });
+
+        //  Run Engines
+        Meteor.setInterval(runEngines, 0.5 * 1000);
+    });
+}
+
+//  ENGINE SYSTEMS
+
+function deleteEngine(engineId) {
+    Engines.remove(engineId);
+}
+
+function startupEngine(engine) {
+    //  Set the online property to TRUE
+    Engines.update(engine._id, {
+        $set: {online: true}
+    });
+    //  Set the fuel to a random value if it was 0
+    if(engine.fuel <= 0) {
+        Engines.update(engine._id, {
+            $set: {fuel: getRandomPercentInteger()}
+        });
+    }
+    //  Set the throttle to a random value
+    Engines.update(engine._id, {
+        $set: {throttle: getRandomPercentInteger()}
+    });
+    console.log('ENGINE', engine.text, 'ENGINE START');
+}
+
+function shutdownEngine(engine) {
+    Engines.update(engine._id, {
+        $set: {
+            throttle: 0
+        }
+    });
+    Engines.update(engine._id, {
+        $set: {
+            online: false
+        }
+    });
+    clearAllEngineAlarms(engine._id);
+    console.log('ENGINE', engine.text, 'ENGINE SHUTDOWN');
 }
 
 function runEngines() {
@@ -45,18 +96,18 @@ function checkForAlarms(engine) {
         var engineId = engine._id;
         var fuelAlarm = engine.fuel < engine.fuelLowValue;
         if(engine.alarms.fuelLow.value != fuelAlarm) {
-            setAlarm(engine, 'fuelLow', fuelAlarm);
+            setEngineAlarm(engine, 'fuelLow', fuelAlarm);
         }
-        
+
 
         var tempAlarm = engine.temperature > engine.temperatureHighValue;
         if(engine.alarms.temperatureHigh.value != tempAlarm) {
-            setAlarm(engine, 'temperatureHigh', tempAlarm);
-        }        
-    }    
+            setEngineAlarm(engine, 'temperatureHigh', tempAlarm);
+        }
+    }
 }
 
-function setAlarm(engine, alarmName, value) {
+function setEngineAlarm(engine, alarmName, value) {
     var engineId = engine._id;
     //  Get all alarm data on engine
     var alarms = Engines.findOne(engineId).alarms;
@@ -75,7 +126,7 @@ function setAlarm(engine, alarmName, value) {
     console.log('ENGINE', engine.text, 'ALARM', alarms[alarmName].msg, 'set to', value);
 }
 
-function clearAllAlarms(engineId) {
+function clearAllEngineAlarms(engineId) {
     Engines.update(engineId, {
         $set: {
             alarms: {
@@ -95,14 +146,18 @@ function clearAllAlarms(engineId) {
 }
 
 function calculateTemperature(engine) {
+    var engineCooldownRate = 0.25;
+    var engineHeatFactor = 60;
+
     var previousTemp = engine.temperature;
     if(engine.online) {
         //  Heat up
-        var currentTemp = previousTemp + (engine.throttle/50);
-        console.log('Engine', engine.text, 'temperature increased by', (engine.throttle/50), 'from', previousTemp, 'to', currentTemp);
+        var increase = engine.throttle/engineHeatFactor;
+        var currentTemp = previousTemp + increase;
+        // console.log('Engine', engine.text, 'temperature increased by', increase, 'from', previousTemp, 'to', currentTemp);
         if(currentTemp > 100) {
             console.log('ENGINE', engine.text, 'overheated. SHUTTING DOWN.');
-            autoShutdownEngine(engine);
+            shutdownEngine(engine);
         } else {
             Engines.update(engine._id, {
                 $set: {
@@ -112,8 +167,8 @@ function calculateTemperature(engine) {
         }
     } else {
         //  Cooldown
-        var currentTemp = previousTemp - 0.1;
-        console.log('Engine', engine.text, 'temperature decreased by', 'from', previousTemp, 'to', currentTemp);
+        var currentTemp = previousTemp - engineCooldownRate;
+        // console.log('Engine', engine.text, 'temperature decreased by', engineCooldownRate, 'from', previousTemp, 'to', currentTemp);
         if(currentTemp > 0) {
             Engines.update(engine._id, {
                 $set: {
@@ -126,8 +181,11 @@ function calculateTemperature(engine) {
 
 function calculateFuel(engine) {
     if(engine.online) {
+        var fuelUseFactor = 50;
+        var decrease = engine.throttle/fuelUseFactor;
+
         var currentFuel = engine.fuel;
-        var fuelRemaining = Math.floor(currentFuel - (engine.throttle/20));
+        var fuelRemaining = Math.floor(currentFuel - decrease);
         if(fuelRemaining < 0) {
             Engines.update(engine._id, {
                 $set: {
@@ -135,7 +193,7 @@ function calculateFuel(engine) {
                 }
             });
             console.log('ENGINE', engine.text, 'is out of fuel. SHUTTING DOWN.');
-            autoShutdownEngine(engine);
+            shutdownEngine(engine);
         } else {
             Engines.update(engine._id, {
                 $set: {
@@ -146,20 +204,6 @@ function calculateFuel(engine) {
     }
 }
 
-function autoShutdownEngine(engine) {    
-    Engines.update(engine._id, {
-        $set: {
-            throttle: 0
-        }
-    });
-    Engines.update(engine._id, {
-        $set: {
-            online: false
-        }
-    });
-    clearAllAlarms(engine._id);
-}
-
 //
 //  COMMON
 //
@@ -167,4 +211,9 @@ function autoShutdownEngine(engine) {
 //  Return a UTC Timestamp string
 function timestamp() {
     return '[' + (new Date()).toUTCString() + ']';
+}
+
+//  Return a random integer between 1 and 100
+function getRandomPercentInteger() {
+    return Math.floor((Math.random() * 100) + 1);
 }
